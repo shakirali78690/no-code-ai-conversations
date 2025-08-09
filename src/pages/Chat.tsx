@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Plus, Send, Copy, RefreshCw, Star, Search, Folder, Trash2 } from "lucide-react";
+import { Plus, Send, Copy, RefreshCw, Star, Search, Folder, Trash2, Palette, Sun, Moon, Settings, Pencil, Save, Share2, ThumbsUp, ThumbsDown, Heart, Lightbulb } from "lucide-react";
 import { Link } from "react-router-dom";
+import ThemeSwitcher from "@/components/theme/ThemeSwitcher";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   id: string;
@@ -31,6 +34,8 @@ const Chat = () => {
   const [model, setModel] = useState(models[0]);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'today' | 'yesterday' | 'week' | 'archived'>('all');
 
   const filteredChats = useMemo(() => {
     return chats.filter(c => c.title.toLowerCase().includes(search.toLowerCase()));
@@ -41,6 +46,7 @@ const Chat = () => {
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: input.trim() };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
+    setIsTyping(true);
     // Fake assistant reply
     setTimeout(() => {
       const reply: Message = {
@@ -49,8 +55,9 @@ const Chat = () => {
         content: `You said: "${userMsg.content}"\n\n(Model: ${model})`,
       };
       setMessages(prev => [...prev, reply]);
+      setIsTyping(false);
       containerRef.current?.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' });
-    }, 500);
+    }, 700);
   };
 
   const copyMessage = async (m: Message) => {
@@ -72,7 +79,24 @@ const Chat = () => {
             {models.map(m => (<option key={m}>{m}</option>))}
           </select>
         </div>
-        <div className="text-xs text-muted-foreground">Usage: — tokens</div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <div className="text-xs text-muted-foreground hidden sm:block">Usage: — tokens</div>
+          <ThemeSwitcher />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Open settings"><Settings className="size-4" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-56">
+              <DropdownMenuLabel>Settings</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>🎨 Themes</DropdownMenuItem>
+              <DropdownMenuItem>🔧 Preferences</DropdownMenuItem>
+              <DropdownMenuItem>📊 Usage Analytics</DropdownMenuItem>
+              <DropdownMenuItem>📤 Export Chat History</DropdownMenuItem>
+              <DropdownMenuItem>⚙️ Account Settings</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-[280px,1fr] overflow-hidden">
@@ -90,7 +114,13 @@ const Chat = () => {
           <div className="px-3 pb-3">
             <div className="flex items-center gap-2 mb-2">
               <Search className="size-4 text-muted-foreground" />
-              <Input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <Input placeholder="Search conversations..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant={filter === 'today' ? 'secondary' : 'ghost'} onClick={() => setFilter('today')}>Today</Button>
+              <Button size="sm" variant={filter === 'yesterday' ? 'secondary' : 'ghost'} onClick={() => setFilter('yesterday')}>Yesterday</Button>
+              <Button size="sm" variant={filter === 'week' ? 'secondary' : 'ghost'} onClick={() => setFilter('week')}>Last Week</Button>
+              <Button size="sm" variant={filter === 'archived' ? 'secondary' : 'ghost'} onClick={() => setFilter('archived')}>Archived</Button>
             </div>
           </div>
           <div className="flex-1 overflow-auto px-2 pb-4 space-y-2">
@@ -114,15 +144,35 @@ const Chat = () => {
             <div className="mx-auto max-w-3xl space-y-4">
               {messages.map((m) => (
                 <div key={m.id} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`rounded-lg px-4 py-3 max-w-[85%] shadow-sm border ${m.role === 'user' ? 'bg-primary text-primary-foreground border-transparent' : 'bg-card border-border'}`}>
+                  <div className={`group rounded-lg px-4 py-3 max-w-[85%] shadow-sm border ${m.role === 'user' ? 'bg-primary text-primary-foreground border-transparent' : 'bg-card border-border'}`}>
                     <pre className="whitespace-pre-wrap font-sans">{m.content}</pre>
-                    <div className="mt-2 flex gap-2 text-xs opacity-70">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                       <button className="hover:underline" onClick={() => copyMessage(m)}><Copy className="inline size-3 mr-1" /> Copy</button>
-                      <button className="hover:underline"><RefreshCw className="inline size-3 mr-1" /> Regenerate</button>
+                      <button className="hover:underline" onClick={() => toast({ description: 'Regenerating response...' })}><RefreshCw className="inline size-3 mr-1" /> Regenerate</button>
+                      <button className="hover:underline" onClick={() => toast({ description: 'Edit mode coming soon' })}><Pencil className="inline size-3 mr-1" /> Edit</button>
+                      <button className="hover:underline" onClick={() => toast({ description: 'Saved to templates' })}><Save className="inline size-3 mr-1" /> Save</button>
+                      <button className="hover:underline" onClick={() => toast({ description: 'Share link copied' })}><Share2 className="inline size-3 mr-1" /> Share</button>
+                      <span className="ml-auto inline-flex items-center gap-1">
+                        <button title="Like" onClick={() => toast({ description: 'Thanks for the feedback!' })}><ThumbsUp className="size-3" /></button>
+                        <button title="Dislike" onClick={() => toast({ description: 'We\'ll improve it!' })}><ThumbsDown className="size-3" /></button>
+                        <button title="Love" onClick={() => toast({ description: 'Saved to favorites' })}><Heart className="size-3" /></button>
+                        <button title="Idea" onClick={() => toast({ description: 'Noted!' })}><Lightbulb className="size-3" /></button>
+                      </span>
                     </div>
                   </div>
                 </div>
               ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="rounded-lg px-4 py-3 max-w-[85%] shadow-sm border bg-card border-border">
+                    <span className="inline-flex gap-1 items-center">
+                      <span className="size-2 rounded-full bg-muted-foreground/60 animate-pulse"></span>
+                      <span className="size-2 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:150ms]"></span>
+                      <span className="size-2 rounded-full bg-muted-foreground/60 animate-pulse [animation-delay:300ms]"></span>
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
